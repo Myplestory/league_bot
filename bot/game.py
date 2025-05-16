@@ -1,6 +1,7 @@
 import logging
 import random
 from time import sleep
+import pyautogui
 
 from bot.keys import press_key
 from bot.mouse import move_mouse, click, attack_move
@@ -15,9 +16,7 @@ class GameBot:
         self.league = LeagueWindow()
         self.update_window_dimensions()
         self.server = GameServer()
-        
-        self.minimap_coords = {}
-        self.update_minimap_coords()
+    
         
         self.MINI_MAP_UNDER_TURRET = MinimapZones.get("base_blue")
         self.MINI_MAP_CENTER_MID = MinimapZones.get("mid_lane")
@@ -28,6 +27,13 @@ class GameBot:
         self.SHOP_PURCHASE_ITEM_BUTTON = (0.7586, 0.58)
         self.SYSTEM_MENU_X_BUTTON = (0.7729, 0.2488)
 
+        self.minimap_coords = {}
+        self.update_window_dimensions()
+        self.update_minimap_coords()
+        self.update_screen_ui_coords()
+
+
+### RATIO AND SCREEN UTILS ###
 
     def update_window_dimensions(self):
         self.league.focus()
@@ -41,6 +47,14 @@ class GameBot:
         log.info(f"Updated window size: {self.window_width}x{self.window_height}")
 
     def convert_ratio(self, ratio):
+        self.update_window_dimensions()
+        return (
+            self.window_left + int(self.window_width * ratio[0]),
+            self.window_top + int(self.window_height * ratio[1])
+        )
+    
+    def convert_screen_ratio(self, ratio):
+        """Convert a screen-relative ratio (0.0–1.0) to coordinates within the League window."""
         self.update_window_dimensions()
         return (
             self.window_left + int(self.window_width * ratio[0]),
@@ -86,21 +100,38 @@ class GameBot:
         if zone_name not in self.minimap_coords:
             self.update_minimap_coords()
         return self.minimap_coords[zone_name]
+    
+    def update_screen_ui_coords(self):
+        """Precompute screen-relative UI element coordinates like shop buttons."""
+        self.SHOP_ITEM_COORDS = [self.convert_screen_ratio(r) for r in self.SHOP_ITEM_BUTTONS]
+        self.SHOP_PURCHASE_COORD = self.convert_screen_ratio(self.SHOP_PURCHASE_ITEM_BUTTON)
+        self.SYSTEM_MENU_X_COORD = self.convert_screen_ratio(self.SYSTEM_MENU_X_BUTTON)
+        self.AFK_OK_COORD = self.convert_screen_ratio(self.AFK_OK_BUTTON)
 
 
+### GAME MECHANICS ###
 
     def shop(self):
-        press_key('p')
-        coords = self.convert_ratio(random.choice(self.SHOP_ITEM_BUTTONS))
+        self.league.focus()
+        print("Opening shop")
+        sleep(1)
+
+        coords = random.choice(self.SHOP_ITEM_COORDS)
         move_mouse(*coords)
-        click(*coords, button='left')
-        coords = self.convert_ratio(self.SHOP_PURCHASE_ITEM_BUTTON)
-        move_mouse(*coords)
-        click(*coords, button='left')
+        # click(*coords, button='left')
+        # click(*coords, button='left')
+        sleep(1)
+
+        print("shop purchase")
+        move_mouse(*self.SHOP_PURCHASE_COORD)
+        # click(*self.SHOP_PURCHASE_COORD, button='left')
+        # click(*coords, button='left')
+        sleep(1)
+
         press_key('esc')
-        coords = self.convert_ratio(self.SYSTEM_MENU_X_BUTTON)
-        move_mouse(*coords)
-        click(*coords, button='left')
+        move_mouse(*self.SYSTEM_MENU_X_COORD)
+        click(*self.SYSTEM_MENU_X_COORD, button='left')
+
 
     def upgrade_abilities(self):
         press_key('ctrl+r')
@@ -162,7 +193,7 @@ class GameBot:
                 print(f"[BOT] Current HP: {hp * 100:.1f}%")
                 # Step 1: Shop and upgrade
                 self.shop()
-                self.upgrade_abilities()
+                # self.upgrade_abilities()
                 # Step 2: Go mid and attack
                 self.go_mid()
                 # Step 3: Sustain combat for a short burst
@@ -186,9 +217,9 @@ class GameBot:
             print(f"[ERROR] Game server error: {e}")
 
 
+
 if __name__ == "__main__":
     bot = GameBot()
-
     try:
         if not bot.server.is_running():
             raise GameServerError("Game is not currently running.")

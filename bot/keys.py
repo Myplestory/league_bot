@@ -1,10 +1,11 @@
-import pyautogui
+import keyboard
 import time
 import random
 from bot.mouse import move_mouse
 
 def press_key(key):
-    pyautogui.press(key)
+    print(f"pressing {key}")
+    keyboard.press_and_release(key)
 
 def cast_ability(key, target_x=None, target_y=None):
     if target_x is not None and target_y is not None:

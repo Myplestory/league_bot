@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b831b1d5e1a340fe66f861800af53e9d1790764139994ae97c8bb4946db97bf3"
+            "sha256": "113225c1fea08527e2c95b0075b26e889565d8ee7f4441d55a624497a9fd9318"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -129,6 +129,14 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==3.10"
+        },
+        "keyboard": {
+            "hashes": [
+                "sha256:63ed83305955939ca5c9a73755e5cc43e8242263f5ad5fd3bb7e0b032f3d308b",
+                "sha256:8e9c2422f1217e0bd84489b9ecd361027cc78415828f4fe4f88dd4acd587947b"
+            ],
+            "index": "pypi",
+            "version": "==0.13.5"
         },
         "mouseinfo": {
             "hashes": [
