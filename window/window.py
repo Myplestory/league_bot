@@ -93,6 +93,15 @@ class LeagueWindow:
         time.sleep(0.5)
         click(x, y, button='right')
 
+    def get_dimensions(self):
+        self.rect = win32gui.GetWindowRect(self.hwnd)
+        x1, y1, x2, y2 = map(int, self.rect)  # convert to ints
+        return {
+            'left': x1,
+            'top': y1,
+            'width': x2 - x1,
+            'height': y2 - y1
+        }
 
         
 

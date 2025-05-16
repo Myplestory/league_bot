@@ -5,6 +5,9 @@ providing functions for interacting with various game endpoints.
 
 import json
 import requests
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 GAME_SERVER_URL = 'https://127.0.0.1:2999/liveclientdata/allgamedata'
 
