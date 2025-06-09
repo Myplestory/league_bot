@@ -1,6 +1,7 @@
 import time
 import win32gui
 import win32con
+import win32process
 from bot.mouse import click, move_mouse
 from bot.keys import cast_ability
 from bot.minimap import MinimapZones
@@ -12,8 +13,10 @@ class LeagueWindow:
 
     def _find_window(self):
         def callback(h, extra):
-            if "League of Legends" in win32gui.GetWindowText(h) and win32gui.IsWindowVisible(h) :
+            if "League of Legends (TM) Client" in win32gui.GetWindowText(h) and win32gui.IsWindowVisible(h) :
                 extra.append(h)
+                _, pid = win32process.GetWindowThreadProcessId(h)
+                print(f"Process ID (PID): {pid}")
         handles = []
         win32gui.EnumWindows(callback, handles)
         if not handles:
@@ -24,12 +27,10 @@ class LeagueWindow:
         # Bring the window to foreground
         win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
         time.sleep(0.1)
-
         # Get window center coordinates
         x1, y1, x2, y2 = win32gui.GetWindowRect(self.hwnd)
         center_x = x1 + (x2 - x1) // 2
         center_y = y1 + (y2 - y1) // 2
-
         # Move mouse and perform a gentle click at center
         move_mouse(center_x, center_y)
         time.sleep(0.05)
@@ -99,8 +100,3 @@ class LeagueWindow:
             'height': y2 - y1
         }
 
-        
-
-
-win = LeagueWindow()
-win.p()

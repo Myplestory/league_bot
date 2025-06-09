@@ -1,7 +1,8 @@
 import logging
 import random
-from time import sleep
+import json
 import pyautogui
+from time import sleep
 
 from bot.keys import press_key
 from bot.mouse import move_mouse, click, attack_move
@@ -31,6 +32,29 @@ class GameBot:
         self.update_window_dimensions()
         self.update_minimap_coords()
         self.update_screen_ui_coords()
+
+        
+        self.LOADING_SCREEN_TIME = 3
+        self.MINION_CLASH_TIME = 85
+        self.FIRST_TOWER_TIME = 1500
+        self.MAX_GAME_TIME = 3000
+
+        self.BOT_T3_TURRET = "Turret_T200_L0_P3"
+        self.BOT_T2_TURRET = "Turret_T200_L0_P2"
+        self.BOT_T1_TURRET = "Turret_T200_L0_P1"
+        self.BOT_INHIB = "Inhib_T200_L0_P1"
+
+        self.MID_T3_TURRET = "Turret_T200_L1_P3"
+        self.MID_T2_TURRET = "Turret_T200_L1_P2"
+        self.MID_T1_TURRET = "Turret_T200_L1_P1"
+        self.MID_INHIB = "Inhib_T200_L1_P1"
+
+        self.TOP_T3_TURRET = "Turret_T200_L2_P3"
+        self.TOP_T2_TURRET = "Turret_T200_L2_P2"
+        self.TOP_T1_TURRET = "Turret_T200_L2_P1"
+        self.TOP_INHIB = "Inhib_T200_L2_P1"
+
+        self.NEXUS_TOWERS = ["Turret_T200_L1_P5","Turret_T200_L1_P4"]
 
 
 ### RATIO AND SCREEN UTILS ###
@@ -114,23 +138,12 @@ class GameBot:
     def shop(self):
         self.league.focus()
         print("Opening shop")
-        sleep(1)
-
+        press_key('p')
         coords = random.choice(self.SHOP_ITEM_COORDS)
         move_mouse(*coords)
-        # click(*coords, button='left')
-        # click(*coords, button='left')
-        sleep(1)
-
+        click(*coords, button='right')
         print("shop purchase")
-        move_mouse(*self.SHOP_PURCHASE_COORD)
-        # click(*self.SHOP_PURCHASE_COORD, button='left')
-        # click(*coords, button='left')
-        sleep(1)
-
-        press_key('esc')
-        move_mouse(*self.SYSTEM_MENU_X_COORD)
-        click(*self.SYSTEM_MENU_X_COORD, button='left')
+        press_key('p')
 
 
     def upgrade_abilities(self):
@@ -179,42 +192,149 @@ class GameBot:
         attack_move(*coords)
         sleep(1)
 
+### CONVERT TOWER COORDS ###
+
+    def convert_stage(self, macro):
+        hm = {
+            "Turret_T200_L0_P3": "x",  # Bot T3
+            "Turret_T200_L0_P2": "x",  # Bot T2
+            "Turret_T200_L0_P1": "x",  # Bot T1
+            "Inhib_T200_L0_P1": "x",   # Bot Inhib
+
+            "Turret_T200_L1_P3": "x",  # Mid T3
+            "Turret_T200_L1_P2": "x",  # Mid T2
+            "Turret_T200_L1_P1": "x",  # Mid T1
+            "Inhib_T200_L1_P1": "x",   # Mid Inhib
+
+            "Turret_T200_L2_P3": "x",  # Top T3
+            "Turret_T200_L2_P2": "x",  # Top T2
+            "Turret_T200_L2_P1": "x",  # Top T1
+            "Inhib_T200_L2_P1": "x",   # Top Inhib
+
+            "Turret_T200_L1_P5": "x",  # Nexus Tower 1
+            "Turret_T200_L1_P4": "x"   # Nexus Tower 2
+        }
+        return hm[macro]
+        
+
+### PLAY GAME ###
 
     def play(self):
-        """Main loop: buy, go mid, attack, retreat if low HP, repeat."""
-        print("[BOT] Starting gameplay loop...")
         try:
-            while True:
-                if self.server.summoner_is_dead():
-                    print("[BOT] Dead. Waiting to respawn...")
-                    sleep(5)
-                    continue
-                hp = self.server.get_summoner_health()
-                print(f"[BOT] Current HP: {hp * 100:.1f}%")
-                # Step 1: Shop and upgrade
-                self.shop()
-                # self.upgrade_abilities()
-                # Step 2: Go mid and attack
-                self.go_mid()
-                # Step 3: Sustain combat for a short burst
-                for _ in range(5):
-                    sleep(2)
-                    if self.server.summoner_is_dead():
-                        break
-                    hp = self.server.get_summoner_health()
-                    if hp < 0.4:
-                        print("[BOT] HP low, retreating and recalling...")
-                        self.right_click(self.MINI_MAP_UNDER_TURRET)
-                        sleep(3)
-                        self.keypress('b')  # Recall
-                        sleep(10)
-                        break
-                    # Simulate continued aggression
-                    self.go_mid()
+            self.game_start()
+            self.game_play_loop()
         except KeyboardInterrupt:
             print("\n[BOT] Interrupted manually. Stopping...")
         except GameServerError as e:
             print(f"[ERROR] Game server error: {e}")
+
+### GAME STAGES ###
+
+    def game_start(self):
+        log.info("Waiting for Minion Clash")
+        sleep(10)
+        self.shop()
+        self.keypress('y')  # lock screen
+        self.upgrade_abilities()
+        while self.server.get_game_time() < self.MINION_CLASH_TIME:
+            self.right_click(self.MINI_MAP_UNDER_TURRET)  # to prevent afk warning popup
+            self.left_click(self.AFK_OK_BUTTON)
+        log.info("Playing Game")
+
+    def game_play_loop(self):
+        try:
+            while True:
+                self.server.update_data()
+                if self.server.get_summoner_health == 0:
+                    sleep(5)
+                    continue
+                current_time = self.server.get_game_time()
+                # if current_time < self.LOADING_SCREEN_TIME:
+                #     loading_screen(game_server)
+                if current_time < self.MINION_CLASH_TIME:
+                    self.game_start()
+                elif current_time < self.FIRST_TOWER_TIME:
+                    self.game_play(self.MINI_MAP_CENTER_MID)
+                elif current_time < self.MAX_GAME_TIME:
+                    data = json.loads(self.server.data)
+                    events = data.get("events",{}).get("Events", [])
+                    destroyed_turrets = set()
+                    for event in events:
+                        if event.get("EventName") == "TurretKilled":
+                            turret_id_full = event.get("TurretKilled", "")
+                            if "Turret_T200_L1" in turret_id_full:
+                                parts = turret_id_full.split("_")
+                                if len(parts) >= 4:
+                                    turret_id = f"{parts[0]}_{parts[1]}_{parts[2]}"
+                                    destroyed_turrets.add(turret_id)
+                    for turret in [self.MID_T1_TURRET, self.MID_T2_TURRET, self.MID_T3_TURRET]:
+                        if turret not in destroyed_turrets:
+                            print(turret)
+                            self.game_play(self.convert_stage(turret))
+                        else:
+                            print("[BOT] All mid turrets down. Pushing NEXUS.")
+                            # self.game_play(self.MID_TURRET_POSITIONS.get("NEXUS"))
+                else:
+                    pass
+                    raise GameServerError("Game has exceeded the max time limit")
+        except KeyboardInterrupt:
+            print("\n[BOT] Interrupted manually. Stopping...")
+        except GameServerError as e:
+            print(f"[ERROR] Game server error: {e}")
+
+
+    def game_play(self, stage):
+        """Main loop: buy, level up, go mid, attack, retreat, back"""
+        print("[BOT] Starting gameplay loop...")
+        try:
+            if self.server.summoner_is_dead():
+                print("[BOT] Dead. Waiting to respawn...")
+                sleep(5)
+            self.shop()
+            self.upgrade_abilities()
+            self.left_click(self.AFK_OK_BUTTON)
+            # Walk to lane
+            self.attack_click(self.MINI_MAP_CENTER_MID)
+            self.keypress('d')  # Ghost
+            sleep(self.TIME_TO_LANE)
+            # Engage in burst combat loop
+            for _ in range(8):
+                if self.server.summoner_is_dead():
+                    print("[BOT] Died during combat.")
+                    break
+                hp = self.server.get_summoner_health()
+                print(f"[BOT] Current HP: {hp * 100:.1f}%")
+                # if hp < 0.7:
+                #     print("[BOT] HP low. Flashing and retreating.")
+                #     self.keypress('f')  # Flash
+                #     self.right_click(self.RETREAT_POSITION)
+                #     sleep(4)
+                #     break
+                # self.attack_click(self.MID_ATTACK_POSITION)
+                # sleep(5)
+                # self.right_click(self.RETREAT_POSITION)
+                # sleep(3)
+            if self.server.summoner_is_dead():
+                print("Dead, passing")
+            # Ult and recall
+            print("[BOT] Using ultimate and recalling...")
+            self.keypress('f')  # Optional flash
+            self.attack_click(self.ULT_DIRECTION)
+            self.keypress('r')  # Ult
+            sleep(1)
+            self.right_click(self.MINI_MAP_UNDER_TURRET)
+            sleep(4)
+            self.keypress('b')  # Recall
+            sleep(10)
+
+        except KeyboardInterrupt:
+            print("\n[BOT] Interrupted manually. Stopping...")
+        except GameServerError as e:
+            print(f"[ERROR] Game server error: {e}")
+
+
+
+    
 
 
 
@@ -223,10 +343,12 @@ if __name__ == "__main__":
     try:
         if not bot.server.is_running():
             raise GameServerError("Game is not currently running.")
+        else:
+                # Run zone test or play logic:
+                bot.play()
+                # bot.play(attack_position=bot.MINI_MAP_CENTER_MID, retreat=bot.MINI_MAP_UNDER_TURRET, time_to_lane=5)
     except GameServerError as e:
         print(f"[ERROR] Could not connect to game server: {e}")
         exit(1)
 
-    # Run zone test or play logic:
-    bot.play()
-    # bot.play(attack_position=bot.MINI_MAP_CENTER_MID, retreat=bot.MINI_MAP_UNDER_TURRET, time_to_lane=5)
+
